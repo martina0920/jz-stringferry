@@ -1,0 +1,16 @@
+# Dart / Flutter
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+*.iml
+.idea/
+
+# 系统
+.DS_Store
+Thumbs.db
+
+# 密钥与环境
+*.env
+*.key
