@@ -28,7 +28,7 @@ dependencies:
   just_audio: ^0.9.39
 
   # 录音（扒带助手：本地导入 + 录音）
-  record: ^5.1.2
+  record: ^7.1.1
 
   # 工具
   uuid: ^4.4.0
