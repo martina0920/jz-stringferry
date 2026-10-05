@@ -1,80 +1,163 @@
-import '../core/models/chord.dart';
+import 'package:sqflite/sqflite.dart';
 
-/// 和弦数据仓库
+import '../core/models/chord_spec.dart';
+import '../core/theory/chord_builder.dart';
+import '../core/theory/chord_quality.dart';
+import '../core/theory/note.dart';
+
+/// 和弦数据仓库（sqflite 异步实现）。
 ///
-/// 首版内置常用和弦示例数据（验证 UI 与交互），
-/// 二期按「尽量全（500+）」扩充，并迁移到 sqflite 本地数据库离线查询。
+/// 全库仅 510 行，首次访问后整体缓存在内存（几十 KB），
+/// 名称/别名/组成音搜索全部走内存，单次耗时远低于 50ms。
 class ChordRepository {
-  ChordRepository._();
+  final Database db;
+  ChordRepository(this.db);
 
-  static final List<Chord> _chords = [
-    // —— 大三和弦 ——
-    const Chord(name: 'C', tones: ['C', 'E', 'G'], intervals: '根音＋大三度＋纯五度', fingering: 'X32010'),
-    const Chord(name: 'D', tones: ['D', 'F#', 'A'], intervals: '根音＋大三度＋纯五度', fingering: 'XX0232'),
-    const Chord(name: 'E', tones: ['E', 'G#', 'B'], intervals: '根音＋大三度＋纯五度', fingering: '022100'),
-    const Chord(name: 'F', tones: ['F', 'A', 'C'], intervals: '根音＋大三度＋纯五度', fingering: '133211'),
-    const Chord(name: 'G', tones: ['G', 'B', 'D'], intervals: '根音＋大三度＋纯五度', fingering: '320003'),
-    const Chord(name: 'A', tones: ['A', 'C#', 'E'], intervals: '根音＋大三度＋纯五度', fingering: 'X02220'),
-    const Chord(name: 'B', tones: ['B', 'D#', 'F#'], intervals: '根音＋大三度＋纯五度', fingering: 'X24442'),
-    const Chord(name: 'C#', tones: ['C#', 'F', 'G#'], intervals: '根音＋大三度＋纯五度', fingering: 'X46664'),
-    const Chord(name: 'F#', tones: ['F#', 'A#', 'C#'], intervals: '根音＋大三度＋纯五度', fingering: '244322'),
-    const Chord(name: 'G#', tones: ['G#', 'C', 'D#'], intervals: '根音＋大三度＋纯五度', fingering: '466544'),
-    const Chord(name: 'A#', tones: ['A#', 'D', 'F'], intervals: '根音＋大三度＋纯五度', fingering: '688666'),
-    const Chord(name: 'D#', tones: ['D#', 'G', 'A#'], intervals: '根音＋大三度＋纯五度', fingering: 'XX1343'),
+  List<ChordSpec>? _cache;
 
-    // —— 小三和弦 ——
-    const Chord(name: 'Cm', tones: ['C', 'Eb', 'G'], intervals: '根音＋小三度＋纯五度', fingering: 'X35543'),
-    const Chord(name: 'Dm', tones: ['D', 'F', 'A'], intervals: '根音＋小三度＋纯五度', fingering: 'XX0231'),
-    const Chord(name: 'Em', tones: ['E', 'G', 'B'], intervals: '根音＋小三度＋纯五度', fingering: '022000'),
-    const Chord(name: 'Fm', tones: ['F', 'Ab', 'C'], intervals: '根音＋小三度＋纯五度', fingering: '133111'),
-    const Chord(name: 'Gm', tones: ['G', 'Bb', 'D'], intervals: '根音＋小三度＋纯五度', fingering: '355333'),
-    const Chord(name: 'Am', tones: ['A', 'C', 'E'], intervals: '根音＋小三度＋纯五度', fingering: 'X02210'),
-    const Chord(name: 'Bm', tones: ['B', 'D', 'F#'], intervals: '根音＋小三度＋纯五度', fingering: 'X24432'),
-
-    // —— 七和弦 ——
-    const Chord(name: 'C7', tones: ['C', 'E', 'G', 'Bb'], intervals: '根音＋大三度＋纯五度＋小七度', fingering: 'X32310'),
-    const Chord(name: 'D7', tones: ['D', 'F#', 'A', 'C'], intervals: '根音＋大三度＋纯五度＋小七度', fingering: 'XX0212'),
-    const Chord(name: 'E7', tones: ['E', 'G#', 'B', 'D'], intervals: '根音＋大三度＋纯五度＋小七度', fingering: '020100'),
-    const Chord(name: 'G7', tones: ['G', 'B', 'D', 'F'], intervals: '根音＋大三度＋纯五度＋小七度', fingering: '320001'),
-    const Chord(name: 'A7', tones: ['A', 'C#', 'E', 'G'], intervals: '根音＋大三度＋纯五度＋小七度', fingering: 'X02020'),
-    const Chord(name: 'B7', tones: ['B', 'D#', 'F#', 'A'], intervals: '根音＋大三度＋纯五度＋小七度', fingering: 'X21202'),
-    const Chord(name: 'Am7', tones: ['A', 'C', 'E', 'G'], intervals: '根音＋小三度＋纯五度＋小七度', fingering: 'X02010'),
-    const Chord(name: 'Dm7', tones: ['D', 'F', 'A', 'C'], intervals: '根音＋小三度＋纯五度＋小七度', fingering: 'XX0211'),
-    const Chord(name: 'Em7', tones: ['E', 'G', 'B', 'D'], intervals: '根音＋小三度＋纯五度＋小七度', fingering: '020000'),
-    const Chord(name: 'Cmaj7', tones: ['C', 'E', 'G', 'B'], intervals: '根音＋大三度＋纯五度＋大七度', fingering: 'X32000'),
-    const Chord(name: 'Fmaj7', tones: ['F', 'A', 'C', 'E'], intervals: '根音＋大三度＋纯五度＋大七度', fingering: 'XX3210'),
-    const Chord(name: 'Gmaj7', tones: ['G', 'B', 'D', 'F#'], intervals: '根音＋大三度＋纯五度＋大七度', fingering: '3X0002'),
-
-    // —— 延伸与变化和弦 ——
-    const Chord(name: 'F#m7b5', tones: ['F#', 'A', 'C', 'E'], intervals: '根音＋小三度＋减五度＋小七度', fingering: '2X2210'),
-    const Chord(name: 'Bm7b5', tones: ['B', 'D', 'F', 'A'], intervals: '根音＋小三度＋减五度＋小七度', fingering: 'X2323X'),
-    const Chord(name: 'Cadd9', tones: ['C', 'E', 'G', 'D'], intervals: '根音＋大三度＋纯五度＋大九度', fingering: 'X32030'),
-    const Chord(name: 'Dsus4', tones: ['D', 'G', 'A'], intervals: '根音＋纯四度＋纯五度', fingering: 'XX0233'),
-    const Chord(name: 'Asus2', tones: ['A', 'B', 'E'], intervals: '根音＋大二度＋纯五度', fingering: 'X02200'),
-    const Chord(name: 'Caug', tones: ['C', 'E', 'G#'], intervals: '根音＋大三度＋增五度', fingering: 'X32110'),
-    const Chord(name: 'Cdim', tones: ['C', 'Eb', 'Gb'], intervals: '根音＋小三度＋减五度', fingering: 'X3454X'),
-    const Chord(name: 'Cm6', tones: ['C', 'Eb', 'G', 'A'], intervals: '根音＋小三度＋纯五度＋大六度', fingering: 'X35545'),
-    const Chord(name: 'Cm9', tones: ['C', 'Eb', 'G', 'Bb', 'D'], intervals: '根音＋小三度＋纯五度＋小七度＋大九度', fingering: 'X3133X'),
-  ];
-
-  /// 全量和弦（后续切换 sqflite 后改为异步查询）
-  static List<Chord> all() => List.unmodifiable(_chords);
-
-  /// 模糊搜索：按名称、组成音匹配
-  static List<Chord> search(String keyword) {
-    final kw = keyword.trim().toLowerCase();
-    if (kw.isEmpty) return all();
-    return _chords.where((c) {
-      return c.name.toLowerCase().contains(kw) ||
-          c.tones.any((t) => t.toLowerCase() == kw || t.toLowerCase().contains(kw));
-    }).toList();
+  Future<List<ChordSpec>> _allCached() async {
+    final c = _cache;
+    if (c != null) return c;
+    final rows = await db.query('chords', orderBy: 'sort_key');
+    _cache = rows.map(ChordSpec.fromMap).toList(growable: false);
+    return _cache!;
   }
 
-  /// 按和弦名精确查询
-  static Chord? byName(String name) {
-    for (final c in _chords) {
-      if (c.name == name) return c;
+  /// 重置/重新导入后清缓存。
+  void invalidateCache() => _cache = null;
+
+  Future<List<ChordSpec>> all({String? family}) async {
+    final list = await _allCached();
+    if (family == null || family.isEmpty) return list;
+    return list.where((c) => c.family == family).toList();
+  }
+
+  /// 全部家族（用于筛选 chips），按内置性质表顺序。
+  Future<List<String>> families() async {
+    final list = await _allCached();
+    final seen = <String>{};
+    final ordered = <String>[];
+    for (final q in allQualities) {
+      if (list.any((c) => c.family == q.family) && seen.add(q.family)) {
+        ordered.add(q.family);
+      }
+    }
+    return ordered;
+  }
+
+  /// 按 id 顺序批量解析（收藏/最近列表用，走内存缓存）。
+  Future<List<ChordSpec>> byIds(Iterable<int> ids) async {
+    final list = await _allCached();
+    final byId = <int, ChordSpec>{};
+    for (final c in list) {
+      final id = c.id;
+      if (id != null) byId[id] = c;
+    }
+    return [
+      for (final id in ids)
+        if (byId.containsKey(id)) byId[id]!,
+    ];
+  }
+
+  Future<ChordSpec?> byId(int id) async {
+    final rows =
+        await db.query('chords', where: 'id = ?', whereArgs: [id], limit: 1);
+    if (rows.isEmpty) return null;
+    return ChordSpec.fromMap(rows.first);
+  }
+
+  Future<ChordSpec?> byName(String name) async {
+    final list = await _allCached();
+    for (final c in list) {
+      if (c.name.toLowerCase() == name.trim().toLowerCase()) return c;
     }
     return null;
+  }
+
+  /// 多维度搜索：和弦名 / 性质与中文别名 / 组成音反查。
+  Future<List<ChordSpec>> search(String keyword) async {
+    final kw = keyword.trim();
+    if (kw.isEmpty) return _allCached();
+    final list = await _allCached();
+    final lower = kw.toLowerCase();
+
+    // 尝试作为「根音 + 性质后缀」解析，如 am7、F#m7b5。
+    final parsed = ChordNameParser.parse(kw);
+
+    // 尝试作为组成音集合解析（空格/逗号/顿号分隔），如 "A C E G"。
+    final tonePcs = _parseTonePcs(kw);
+
+    final scored = <(ChordSpec, int)>[];
+    for (final c in list) {
+      final name = c.name.toLowerCase();
+
+      if (name == lower) {
+        scored.add((c, 0));
+        continue;
+      }
+
+      // 解析出的精确和弦名（am7 等）排最前。
+      if (parsed != null &&
+          c.root.toLowerCase() == parsed.root.toLowerCase() &&
+          c.quality.id == parsed.quality.id) {
+        scored.add((c, 0));
+        continue;
+      }
+
+      // 性质别名精确命中（小七、挂四、属七…）。
+      final quality = qualitiesById[c.quality.id];
+      if (quality != null &&
+          quality.aliases.any((a) => a.toLowerCase() == lower)) {
+        scored.add((c, 1));
+        continue;
+      }
+
+      // 组成音完全一致优先，被包含（宽松匹配）其后。
+      if (tonePcs != null && tonePcs.length >= 2) {
+        final chordPcs = c.tones.map(Note.pitchClassOf).toSet();
+        if (tonePcs.every(chordPcs.contains)) {
+          scored.add((c, chordPcs.length == tonePcs.length ? 2 : 4));
+          continue;
+        }
+      }
+
+      // 名称前缀 / 包含（英文与数字后缀的模糊匹配；
+      // 中文别名只走上面的精确命中，避免「小七」误命中「减小七和弦」）。
+      if (name.startsWith(lower)) {
+        scored.add((c, 3));
+        continue;
+      }
+      if (name.contains(lower)) {
+        scored.add((c, 6));
+      }
+    }
+
+    scored.sort((a, b) {
+      final byRank = a.$2.compareTo(b.$2);
+      if (byRank != 0) return byRank;
+      return a.$1.sortKey.compareTo(b.$1.sortKey);
+    });
+    return scored.map((e) => e.$1).toList();
+  }
+
+  /// 把 "A C E G" / "a,c,e,g" / "A、C、E、G" 解析为音级集合；
+  /// 不足 2 个合法音名时返回 null（单词 "C" 不视为组成音搜索）。
+  Set<int>? _parseTonePcs(String input) {
+    final tokens =
+        input.split(RegExp(r'[\s,，、]+')).where((t) => t.isNotEmpty).toList();
+    if (tokens.length < 2) return null;
+    // 严格音名（字母 + 可选一个升降号）：Note.pitchClassOf 只看前两个字符，
+    // 不做约束会把 "Am7" 这类脏 token 静默当成 A。
+    final noteToken = RegExp(r'^[A-Ga-g][#b]?$');
+    final pcs = <int>{};
+    for (final t in tokens) {
+      if (!noteToken.hasMatch(t)) return null;
+      try {
+        pcs.add(Note.pitchClassOf(t));
+      } catch (_) {
+        return null;
+      }
+    }
+    return pcs;
   }
 }

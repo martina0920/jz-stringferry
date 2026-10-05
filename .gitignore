@@ -10,6 +10,10 @@ build/
 # 系统
 .DS_Store
 Thumbs.db
+.trae/
+
+# 采样源临时文件（裁剪前的原始 zip/解压包，数百 MB）
+build/
 
 # 密钥与环境
 *.env

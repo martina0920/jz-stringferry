@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- v0.4 扒带助手：应用内录音（运行时由 record 插件请求授权）。 -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <application
         android:label="jz_stringferry"
         android:name="${applicationName}"

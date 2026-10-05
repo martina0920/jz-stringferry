@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/router/app_router.dart';
 import '../../core/theme/app_theme.dart';
 
-/// 首页：七大功能模块入口
+/// 首页：品牌头图 + 六大功能模块入口（2 列磁贴）
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
@@ -24,7 +24,7 @@ class HomePage extends StatelessWidget {
     _Module(
       icon: Icons.auto_awesome_rounded,
       title: 'AI 助手',
-      subtitle: '问答·扒带·编曲建议',
+      subtitle: '查和弦·讲进行·离线汇总',
       route: AppRouter.ai,
     ),
     _Module(
@@ -64,10 +64,24 @@ class HomePage extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
             const _BrandHeader(),
-            const SizedBox(height: 24),
-            ..._modules.map((m) => _ModuleCard(module: m)),
+            const SizedBox(height: 20),
+            // 两列一组排布磁贴；IntrinsicHeight 让同组两块等高。
+            for (var i = 0; i < _modules.length; i += 2)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(child: _ModuleTile(module: _modules[i])),
+                      const SizedBox(width: 12),
+                      Expanded(child: _ModuleTile(module: _modules[i + 1])),
+                    ],
+                  ),
+                ),
+              ),
             const SizedBox(height: 12),
-            _Footer(),
+            const _Footer(),
           ],
         ),
       ),
@@ -81,7 +95,7 @@ class _BrandHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
       decoration: BoxDecoration(
         color: AppColors.mist,
         borderRadius: BorderRadius.circular(20),
@@ -92,7 +106,8 @@ class _BrandHeader extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   border: Border.all(color: AppColors.gold, width: 1.2),
                   borderRadius: BorderRadius.circular(8),
@@ -100,7 +115,7 @@ class _BrandHeader extends StatelessWidget {
                 child: const Text(
                   'J&Z',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 17,
                     fontWeight: FontWeight.w600,
                     color: AppColors.ink,
                   ),
@@ -109,17 +124,20 @@ class _BrandHeader extends StatelessWidget {
               const SizedBox(width: 12),
               const Text(
                 '一人一弦，合奏成曲',
-                style: TextStyle(color: AppColors.inkSoft, fontSize: 14),
+                style: TextStyle(color: AppColors.inkSoft, fontSize: 13),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Text(
+          const SizedBox(height: 14),
+          const Text(
             '从查一个和弦，到扒一首歌\n再到完成自己的编曲',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  height: 1.4,
-                ),
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              height: 1.45,
+              color: AppColors.ink,
+              letterSpacing: -0.3,
+            ),
           ),
         ],
       ),
@@ -127,59 +145,58 @@ class _BrandHeader extends StatelessWidget {
   }
 }
 
-class _ModuleCard extends StatelessWidget {
-  const _ModuleCard({required this.module});
+/// 功能磁贴：浅灰底、炭黑图标块，无描边无箭头。
+class _ModuleTile extends StatelessWidget {
+  const _ModuleTile({required this.module});
 
   final _Module module;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+    return Material(
+      color: AppColors.mist,
+      borderRadius: BorderRadius.circular(18),
       child: InkWell(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         onTap: () => context.push(module.route),
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: AppColors.ink,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(module.icon, color: Colors.white, size: 24),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.ink,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        module.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.ink,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        module.subtitle,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppColors.inkSoft,
-                        ),
-                      ),
-                    ],
-                  ),
+                child: Icon(module.icon, color: Colors.white, size: 21),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                module.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.ink,
                 ),
-                const Icon(Icons.chevron_right_rounded, color: AppColors.inkSoft),
-              ],
-            ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                module.subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  height: 1.35,
+                  color: AppColors.inkSoft,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -188,6 +205,8 @@ class _ModuleCard extends StatelessWidget {
 }
 
 class _Footer extends StatelessWidget {
+  const _Footer();
+
   @override
   Widget build(BuildContext context) {
     return const Padding(

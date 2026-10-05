@@ -24,6 +24,9 @@ class AppColors {
 
   /// 细线——分隔线
   static const Color hairline = Color(0xFFE8E6E0);
+
+  /// 错误/判负提示
+  static const Color danger = Color(0xFFB3261E);
 }
 
 class AppTheme {
@@ -39,7 +42,11 @@ class AppTheme {
         error: const Color(0xFFB3261E),
       ),
       scaffoldBackgroundColor: AppColors.paper,
-      fontFamilyFallback: const ['PingFang SC', 'Microsoft YaHei', 'Noto Sans SC'],
+      fontFamilyFallback: const [
+        'PingFang SC',
+        'Microsoft YaHei',
+        'Noto Sans SC'
+      ],
     );
 
     return base.copyWith(
@@ -77,7 +84,8 @@ class AppTheme {
         filled: true,
         fillColor: AppColors.mist,
         hintStyle: const TextStyle(color: AppColors.inkSoft),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide.none,
@@ -96,7 +104,8 @@ class AppTheme {
           backgroundColor: AppColors.ink,
           foregroundColor: Colors.white,
           minimumSize: const Size.fromHeight(52),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
