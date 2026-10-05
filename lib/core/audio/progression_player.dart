@@ -64,6 +64,11 @@ class ProgressionPlayer {
         Duration(milliseconds: note.timeMs),
         () {
           if (gen != _generation) return;
+          // 鼓组采样走固定路径，其余按当前音色取 MIDI 采样（v0.5）。
+          if (note.drumKind != null) {
+            player.playAsset(note.drumKind!.assetPath);
+            return;
+          }
           for (final midi in note.midis) {
             player.playAsset(GuitarAudioService.assetFor(instrument, midi));
           }

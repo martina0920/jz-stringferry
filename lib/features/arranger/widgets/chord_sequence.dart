@@ -4,9 +4,10 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theory/key_harmony.dart';
 import '../state/arranger_store.dart';
+import 'chord_editor_sheet.dart';
 import 'chord_picker_sheet.dart';
 
-/// 和弦序列区：横向卡片（级数角标 / 删除 / 长按拖拽 / 播放高亮）。
+/// 和弦序列区：横向卡片（级数角标 / 删除 / 长按拖拽 / 播放高亮 / 点击编辑）。
 class ChordSequence extends StatelessWidget {
   const ChordSequence({super.key});
 
@@ -91,6 +92,19 @@ class ChordSequence extends StatelessWidget {
   Widget _chordCard(BuildContext context, int index, String name) {
     final store = context.read<ArrangerStore>();
     final highlighted = store.highlightIndex == index && store.isPlaying;
+    final p = store.current!;
+    final defaultBeats = p.timeSignature.beatsPerBar;
+    final customBeats =
+        (p.chordBeats != null && index < p.chordBeats!.length)
+            ? p.chordBeats![index]
+            : defaultBeats;
+    String? section;
+    for (final m in p.sections) {
+      if (m.index == index) {
+        section = m.label;
+        break;
+      }
+    }
 
     return Container(
       key: ValueKey('chord_card_$index'),
@@ -99,59 +113,110 @@ class ChordSequence extends StatelessWidget {
       child: ReorderableDelayedDragStartListener(
         index: index,
         enabled: !store.isPlaying,
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.paper,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: highlighted ? AppColors.gold : AppColors.hairline,
-              width: highlighted ? 1.6 : 1,
-            ),
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                left: 8,
-                top: 6,
-                child: Text(
-                  romanNumeral(name, store.current!.key),
-                  style: const TextStyle(
-                      fontSize: 11,
-                      color: AppColors.gold,
-                      fontWeight: FontWeight.w700),
-                ),
+        child: GestureDetector(
+          onTap: store.isPlaying
+              ? null
+              : () => _editChord(context, index, name, customBeats,
+                  defaultBeats, section),
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.paper,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: highlighted ? AppColors.gold : AppColors.hairline,
+                width: highlighted ? 1.6 : 1,
               ),
-              Positioned(
-                right: 2,
-                top: 2,
-                child: GestureDetector(
-                  key: Key('remove_chord_$index'),
-                  behavior: HitTestBehavior.opaque,
-                  onTap: store.isPlaying ? null : () => store.removeAt(index),
-                  child: const Padding(
-                    padding: EdgeInsets.all(4),
-                    child: Icon(Icons.close_rounded,
-                        size: 16, color: AppColors.inkSoft),
+            ),
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 8,
+                  top: 6,
+                  child: Text(
+                    romanNumeral(name, p.key),
+                    style: const TextStyle(
+                        fontSize: 11,
+                        color: AppColors.gold,
+                        fontWeight: FontWeight.w700),
                   ),
                 ),
-              ),
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
-                      name,
-                      style: const TextStyle(
-                          fontSize: 22, fontWeight: FontWeight.w700),
+                Positioned(
+                  right: 2,
+                  top: 2,
+                  child: GestureDetector(
+                    key: Key('remove_chord_$index'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap:
+                        store.isPlaying ? null : () => store.removeAt(index),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(Icons.close_rounded,
+                          size: 16, color: AppColors.inkSoft),
                     ),
                   ),
                 ),
-              ),
-            ],
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        name,
+                        style: const TextStyle(
+                            fontSize: 22, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ),
+                if (customBeats != defaultBeats)
+                  Positioned(
+                    left: 8,
+                    bottom: 5,
+                    child: Text('$customBeats拍',
+                        style: const TextStyle(
+                            fontSize: 10, color: AppColors.inkSoft)),
+                  ),
+                if (section != null)
+                  Positioned(
+                    right: 6,
+                    bottom: 5,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppColors.gold.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(section,
+                          style: const TextStyle(
+                              fontSize: 10, color: AppColors.ink)),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _editChord(BuildContext context, int index, String name,
+      int customBeats, int defaultBeats, String? section) async {
+    final result = await showChordEditorSheet(
+      context,
+      currentName: name,
+      currentBeats: customBeats,
+      defaultBeats: defaultBeats,
+      currentSection: section,
+    );
+    if (result == null) return;
+    if (!context.mounted) return;
+    final store = context.read<ArrangerStore>();
+    await store.editChordAt(index, result.name, result.beats);
+    if (result.removeSection) {
+      await store.setSectionMark(index, null);
+    } else if (result.sectionLabel != null) {
+      await store.setSectionMark(index, result.sectionLabel);
+    }
   }
 }

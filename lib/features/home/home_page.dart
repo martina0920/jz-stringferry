@@ -22,10 +22,10 @@ class HomePage extends StatelessWidget {
       route: AppRouter.study,
     ),
     _Module(
-      icon: Icons.auto_awesome_rounded,
-      title: 'AI 助手',
-      subtitle: '查和弦·讲进行·离线汇总',
-      route: AppRouter.ai,
+      icon: Icons.sticky_note_2_rounded,
+      title: '练习笔记',
+      subtitle: '记练习心得·乐理随想',
+      route: AppRouter.notes,
     ),
     _Module(
       icon: Icons.grid_view_rounded,
@@ -50,21 +50,11 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('J&Z 弦渡'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => context.push(AppRouter.settings),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('J&Z 弦渡')),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           children: [
-            const _BrandHeader(),
-            const SizedBox(height: 20),
             // 两列一组排布磁贴；IntrinsicHeight 让同组两块等高。
             for (var i = 0; i < _modules.length; i += 2)
               Padding(
@@ -80,66 +70,8 @@ class HomePage extends StatelessWidget {
                   ),
                 ),
               ),
-            const SizedBox(height: 12),
-            const _Footer(),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _BrandHeader extends StatelessWidget {
-  const _BrandHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
-      decoration: BoxDecoration(
-        color: AppColors.mist,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  border: Border.all(color: AppColors.gold, width: 1.2),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  'J&Z',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.ink,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                '一人一弦，合奏成曲',
-                style: TextStyle(color: AppColors.inkSoft, fontSize: 13),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          const Text(
-            '从查一个和弦，到扒一首歌\n再到完成自己的编曲',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              height: 1.45,
-              color: AppColors.ink,
-              letterSpacing: -0.3,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -198,23 +130,6 @@ class _ModuleTile extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Footer extends StatelessWidget {
-  const _Footer();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.only(top: 8),
-      child: Center(
-        child: Text(
-          'J&Z 弦渡 · 佳宇 & 泽华',
-          style: TextStyle(color: AppColors.inkSoft, fontSize: 12),
         ),
       ),
     );

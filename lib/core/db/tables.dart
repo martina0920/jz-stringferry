@@ -19,6 +19,7 @@ class Tables {
     _transcribeSongs,
     _transcribeSegments,
     _earTrainingStats,
+    _notes,
   ];
 
   /// 删表顺序（引用表在前）。
@@ -33,6 +34,7 @@ class Tables {
     'recent_queries',
     'favorites',
     'chords',
+    'notes',
     'meta',
     'settings',
   ];
@@ -48,6 +50,20 @@ class Tables {
     _transcribeSongs,
     _transcribeSegments,
     _earTrainingStats,
+  ];
+
+  /// v3 → v4 增量 DDL（v0.5：编曲音色/鼓轨/段落/每和弦拍数 + 练习笔记）。
+  static const List<String> migrationV4Ddl = [
+    ..._progressionsV4Columns,
+    _notes,
+  ];
+
+  /// progressions 的 v4 新列（ALTER TABLE 逐列追加）。
+  static const List<String> _progressionsV4Columns = [
+    "ALTER TABLE progressions ADD COLUMN instrument_id TEXT NOT NULL DEFAULT 'guitar'",
+    'ALTER TABLE progressions ADD COLUMN drum_track INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE progressions ADD COLUMN sections TEXT',
+    'ALTER TABLE progressions ADD COLUMN chord_beats TEXT',
   ];
 
   /// resetUserData（恢复示例数据）不清的表：settings 存 API key，
@@ -174,6 +190,8 @@ CREATE TABLE checkins (
   /// 编曲进行（v0.3）。chords 为和弦名有序 JSON 数组（每个和弦一小节）；
   /// key_mode: major / minor；time_signature: 4/4 | 3/4；
   /// pattern: strum | slowStrum | finger。
+  /// v4 新列：instrument_id 播放音色、drum_track 鼓组伴奏开关、
+  /// sections 段落标记 JSON（[{index,label}]）、chord_beats 每和弦拍数 JSON。
   static const _progressions = '''
 CREATE TABLE progressions (
   id TEXT PRIMARY KEY,
@@ -184,7 +202,19 @@ CREATE TABLE progressions (
   bpm INTEGER NOT NULL DEFAULT 90,
   time_signature TEXT NOT NULL DEFAULT '4/4',
   pattern TEXT NOT NULL DEFAULT 'strum',
+  instrument_id TEXT NOT NULL DEFAULT 'guitar',
+  drum_track INTEGER NOT NULL DEFAULT 0,
+  sections TEXT,
+  chord_beats TEXT,
   created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+)''';
+
+  /// 练习笔记（v0.5）。单文本块，按更新时间倒序展示。
+  static const _notes = '''
+CREATE TABLE IF NOT EXISTS notes (
+  id TEXT PRIMARY KEY,
+  content TEXT NOT NULL,
   updated_at INTEGER NOT NULL
 )''';
 }

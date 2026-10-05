@@ -2,16 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/audio/just_audio_tone_player.dart';
 import '../../core/theme/app_theme.dart';
 import 'state/arranger_store.dart';
 import 'widgets/chord_sequence.dart';
+import 'widgets/instrument_row.dart';
 import 'widgets/key_panel.dart';
 import 'widgets/play_bar.dart';
 import 'widgets/progression_dialogs.dart';
+import 'widgets/section_bar.dart';
 import 'widgets/share_progression_sheet.dart';
 import 'widgets/template_strip.dart';
 
-/// 编曲编辑器：调性 / 和弦序列 / 模板 / 播放控制。
+/// 编曲编辑器：音色 / 调性 / 段落 / 和弦序列 / 模板 / 播放控制。
 class ArrangerEditorPage extends StatefulWidget {
   static const String route = '/arranger/edit';
 
@@ -23,6 +26,7 @@ class ArrangerEditorPage extends StatefulWidget {
 
 class _ArrangerEditorPageState extends State<ArrangerEditorPage> {
   ArrangerStore? _store;
+  final JustAudioTonePlayer _preview = JustAudioTonePlayer();
 
   @override
   void didChangeDependencies() {
@@ -35,6 +39,7 @@ class _ArrangerEditorPageState extends State<ArrangerEditorPage> {
   void dispose() {
     // 离开编辑器即停止播放（FR-9）。
     _store?.stopPlay();
+    _preview.stopAll();
     super.dispose();
   }
 
@@ -85,8 +90,15 @@ class _ArrangerEditorPageState extends State<ArrangerEditorPage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
           children: [
+            InstrumentRow(
+              selectedId: p.instrumentId,
+              onSelect: (inst) => store.setInstrument(inst.id),
+              previewPlayer: _preview,
+            ),
+            const SizedBox(height: 16),
             const KeyPanel(),
             const SizedBox(height: 20),
+            const SectionBar(),
             const Text('和弦序列',
                 style: TextStyle(
                     fontSize: 14,

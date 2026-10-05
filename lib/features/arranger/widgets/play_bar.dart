@@ -36,6 +36,17 @@ class PlayBar extends StatelessWidget {
                         : store.playCurrent(),
                   ),
                   const SizedBox(width: 12),
+                  // 鼓组伴奏轨开关（v0.5）。
+                  IconButton(
+                    key: const Key('playbar_drum_toggle'),
+                    tooltip: '鼓组伴奏',
+                    onPressed: empty ? null : () => store.toggleDrums(),
+                    isSelected: p.drumTrack,
+                    icon: const Icon(Icons.sports_basketball_rounded, size: 20),
+                    color: AppColors.inkSoft,
+                    selectedIcon: const Icon(Icons.sports_basketball_rounded,
+                        size: 20, color: AppColors.gold),
+                  ),
                   SizedBox(
                     width: 64,
                     child: Text('${p.bpm} BPM',

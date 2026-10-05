@@ -9,21 +9,38 @@ class StrumEvent {
   const StrumEvent(this.beat, this.stringIndexes);
 }
 
+/// 鼓件类型（v0.5 鼓组伴奏轨）。
+enum DrumKind {
+  kick('kick'),
+  snare('snare'),
+  hat('hat');
+
+  final String wire;
+  const DrumKind(this.wire);
+
+  /// 对应采样资产路径。
+  String get assetPath => 'assets/audio/drums/$wire.wav';
+}
+
 /// 进入播放队列的一个齐发音（绝对相对时间）。
 class ScheduledNote {
-  /// 所属和弦（小节）序号。
+  /// 所属和弦（小节）序号；鼓件音为 -1（无高亮）。
   final int chordIndex;
 
   /// 相对序列起点的毫秒数。
   final int timeMs;
 
-  /// 本次齐发的 MIDI 音（严格上行）。
+  /// 本次齐发的 MIDI 音（严格上行）；鼓件音为空。
   final List<int> midis;
+
+  /// 非空时本音为鼓组采样（v0.5）。
+  final DrumKind? drumKind;
 
   const ScheduledNote({
     required this.chordIndex,
     required this.timeMs,
     required this.midis,
+    this.drumKind,
   });
 }
 
@@ -136,34 +153,108 @@ class StrumPatterns {
     ];
   }
 
-  /// 整段进行排程：每个和弦占一小节。
+  /// 整段进行排程：每个和弦默认占一小节。
   ///
   /// [stringVoicings] 与和弦序列一一对应，每项为该和弦的 5 弦 MIDI
   /// （由 [voiceGuitarStrings] 生成）。
+  /// [perChordBeats] 可为每个和弦单独指定拍数（v0.5），小节模式在该时长内
+  /// 循环铺满；为 null 时每和弦按拍号一小节（与旧行为完全一致）。
   static ProgressionSchedule buildProgressionSchedule({
     required List<List<int>> stringVoicings,
     required int bpm,
     required AccomPattern pattern,
     required TimeSignature timeSignature,
+    List<int>? perChordBeats,
   }) {
     final beatMs = 60000 / bpm;
     final beatsPerBar = timeSignature.beatsPerBar;
     final barEvents = buildBarSchedule(pattern, timeSignature);
     final notes = <ScheduledNote>[];
 
+    var chordStartBeat = 0.0;
     for (var c = 0; c < stringVoicings.length; c++) {
       final strings = stringVoicings[c];
-      for (final e in barEvents) {
-        final timeMs = ((c * beatsPerBar) + e.beat) * beatMs;
-        notes.add(ScheduledNote(
-          chordIndex: c,
-          timeMs: timeMs.round(),
-          midis: [for (final i in e.stringIndexes) strings[i]],
-        ));
+      final chordBeats =
+          (perChordBeats != null && c < perChordBeats.length)
+              ? perChordBeats[c].clamp(1, 32)
+              : beatsPerBar;
+      final reps = (chordBeats / beatsPerBar).ceil();
+      for (var r = 0; r < reps; r++) {
+        for (final e in barEvents) {
+          final beatInChord = r * beatsPerBar + e.beat;
+          if (beatInChord >= chordBeats) continue;
+          final timeMs = ((chordStartBeat + beatInChord) * beatMs).round();
+          notes.add(ScheduledNote(
+            chordIndex: c,
+            timeMs: timeMs,
+            midis: [for (final i in e.stringIndexes) strings[i]],
+          ));
+        }
       }
+      chordStartBeat += chordBeats;
     }
 
-    final totalMs = (stringVoicings.length * beatsPerBar * beatMs).round();
+    final totalMs = (chordStartBeat * beatMs).round();
     return ProgressionSchedule(notes, totalMs);
+  }
+
+  /// 鼓组伴奏排程（v0.5）：与和弦排程等长，在 [durationMs] 内按小节循环。
+  ///
+  /// 规则：kick 每小节第 1 拍；snare 落 4/4 第 2/4 拍、3/4 第 2/3 拍；
+  /// hat 每 8 分音符。chordIndex = -1（不参与高亮）。
+  static ProgressionSchedule buildDrumSchedule({
+    required int bpm,
+    required TimeSignature timeSignature,
+    required int durationMs,
+  }) {
+    final beatMs = 60000 / bpm;
+    final beatsPerBar = timeSignature.beatsPerBar;
+    // durationMs 为整数拍换算后的毫秒（含舍入误差），用容错取整避免
+    // 2667/666.67=4.0005 被 ceil 成 5 导致循环尾部多出鼓点。
+    final totalBeats = ((durationMs / beatMs) + 0.01).floor();
+    final notes = <ScheduledNote>[];
+
+    for (var b = 0; b < totalBeats; b++) {
+      final beatInBar = b % beatsPerBar;
+      final t = (b * beatMs).round();
+      if (beatInBar == 0) {
+        notes.add(ScheduledNote(
+            chordIndex: -1, timeMs: t, midis: const [], drumKind: DrumKind.kick));
+      }
+      final snareBeats = beatsPerBar == 4 ? const [1, 3] : const [1, 2];
+      if (snareBeats.contains(beatInBar)) {
+        notes.add(ScheduledNote(
+            chordIndex: -1,
+            timeMs: t,
+            midis: const [],
+            drumKind: DrumKind.snare));
+      }
+      // hat：每 8 分音符（整拍 + 半拍）。
+      notes.add(ScheduledNote(
+          chordIndex: -1, timeMs: t, midis: const [], drumKind: DrumKind.hat));
+      notes.add(ScheduledNote(
+          chordIndex: -1,
+          timeMs: (b * beatMs + beatMs / 2).round(),
+          midis: const [],
+          drumKind: DrumKind.hat));
+    }
+    return ProgressionSchedule(notes, durationMs);
+  }
+
+  /// 前 [upTo] 个和弦的累计时长（毫秒）；用于从中间起播时鼓轨平移。
+  static int leadingBeatsMs({
+    required List<int>? perChordBeats,
+    required int upTo,
+    required int beatsPerBar,
+    required int bpm,
+  }) {
+    final beatMs = 60000 / bpm;
+    var beats = 0.0;
+    for (var i = 0; i < upTo; i++) {
+      beats += (perChordBeats != null && i < perChordBeats.length)
+          ? perChordBeats[i].clamp(1, 32)
+          : beatsPerBar;
+    }
+    return (beats * beatMs).round();
   }
 }

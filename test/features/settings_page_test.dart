@@ -69,8 +69,14 @@ void main() {
     // 点击在假时区完成以触发手势回调，随后放行真实事件循环让 FFI 重置链跑完，
     // 最后再补帧（FFI 未完成时 pump 会与真实 I/O 死锁）。
     await tester.tap(find.text('确认恢复'));
-    await tester
-        .runAsync(() => Future.delayed(const Duration(milliseconds: 1500)));
+    // 轮询等待重置链完成（并行测试负载下 1.5s 可能不够），上限 8s。
+    await tester.runAsync(() async {
+      final deadline = DateTime.now().add(const Duration(seconds: 8));
+      while (collectionStore.favoriteIds.isNotEmpty &&
+          DateTime.now().isBefore(deadline)) {
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+    });
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 

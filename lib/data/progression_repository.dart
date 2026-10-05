@@ -56,6 +56,11 @@ class ProgressionRepository {
       bpm: p.bpm,
       timeSignature: p.timeSignature,
       pattern: p.pattern,
+      instrumentId: p.instrumentId,
+      drumTrack: p.drumTrack,
+      sections: List<SectionMark>.of(p.sections),
+      chordBeats:
+          p.chordBeats == null ? null : List<int>.of(p.chordBeats!),
       createdAt: now,
       updatedAt: now,
     );

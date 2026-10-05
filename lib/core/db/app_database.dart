@@ -14,7 +14,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const String dbName = 'stringferry.db';
-  static const int schemaVersion = 3;
+  static const int schemaVersion = 4;
 
   Database? _db;
 
@@ -57,6 +57,23 @@ class AppDatabase {
           }
           if (oldVersion < 3) {
             for (final ddl in Tables.migrationV3Ddl) {
+              await db.execute(ddl);
+            }
+          }
+          if (oldVersion < 4) {
+            // progressions 的新列按存在性幂等追加：v1/v2 起点的库在
+            // 早期迁移时已用含 v4 列的建表语句创建，直接 ALTER 会报
+            // duplicate column；notes 建表语句本身带 IF NOT EXISTS。
+            final existing =
+                (await db.rawQuery('PRAGMA table_info(progressions)'))
+                    .map((row) => row['name'] as String)
+                    .toSet();
+            for (final ddl in Tables.migrationV4Ddl) {
+              if (ddl.startsWith('ALTER TABLE')) {
+                final m =
+                    RegExp(r'ADD COLUMN (\w+)').firstMatch(ddl);
+                if (m != null && existing.contains(m.group(1))) continue;
+              }
               await db.execute(ddl);
             }
           }

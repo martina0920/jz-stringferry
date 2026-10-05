@@ -11,6 +11,7 @@ import 'data/chat_service.dart';
 import 'data/chord_collection_repository.dart';
 import 'data/chord_repository.dart';
 import 'data/chord_seeder.dart';
+import 'data/note_repository.dart';
 import 'data/plan_templates.dart';
 import 'data/progression_repository.dart';
 import 'data/qwen_omni_transcribe_service.dart';
@@ -23,6 +24,7 @@ import 'features/chord/state/chord_collection_store.dart';
 import 'features/cover/audio_import_source.dart';
 import 'features/cover/recording_source.dart';
 import 'features/cover/state/cover_store.dart';
+import 'features/notes/state/notes_store.dart';
 import 'features/study/state/study_plan_store.dart';
 import 'features/toolbox/metronome/state/metronome_store.dart';
 import 'features/toolbox/tuner/state/tuner_store.dart';
@@ -96,6 +98,13 @@ Future<void> main() async {
               ),
               Provider<TranscribeService>(
                 create: (_) => QwenOmniTranscribeService(),
+              ),
+              // ---- v0.5 练习笔记 ----
+              ChangeNotifierProvider(
+                create: (_) =>
+                    NotesStore(repo: NoteRepository(
+                  AppDatabase.instance.database,
+                )),
               ),
             ],
             child: const JzStringFerryApp(),

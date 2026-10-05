@@ -63,6 +63,18 @@ class Progression {
   final TimeSignature timeSignature;
   final AccomPattern pattern;
 
+  /// 播放音色 id（instrument.dart 注册表；v0.5）。
+  final String instrumentId;
+
+  /// 鼓组伴奏轨开关（v0.5）。
+  final bool drumTrack;
+
+  /// 段落标记：每个元素表示「从 [SectionMark.index] 号和弦起进入该段」。
+  final List<SectionMark> sections;
+
+  /// 每和弦拍数（与 chords 对齐；null 表示全部按拍号默认一小节）。
+  final List<int>? chordBeats;
+
   final int createdAt;
   final int updatedAt;
 
@@ -75,6 +87,10 @@ class Progression {
     this.bpm = 90,
     this.timeSignature = TimeSignature.fourFour,
     this.pattern = AccomPattern.strum,
+    this.instrumentId = 'guitar',
+    this.drumTrack = false,
+    this.sections = const [],
+    this.chordBeats,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -92,6 +108,10 @@ class Progression {
         bpm: (m['bpm'] as int?) ?? 90,
         timeSignature: TimeSignature.fromWire(m['time_signature'] as String?),
         pattern: AccomPattern.fromWire(m['pattern'] as String?),
+        instrumentId: (m['instrument_id'] as String?) ?? 'guitar',
+        drumTrack: ((m['drum_track'] as int?) ?? 0) != 0,
+        sections: SectionMark.decodeList(m['sections'] as String?),
+        chordBeats: _decodeChordBeats(m['chord_beats'] as String?),
         createdAt: m['created_at'] as int,
         updatedAt: m['updated_at'] as int,
       );
@@ -105,6 +125,10 @@ class Progression {
         'bpm': bpm,
         'time_signature': timeSignature.wire,
         'pattern': pattern.wire,
+        'instrument_id': instrumentId,
+        'drum_track': drumTrack ? 1 : 0,
+        'sections': SectionMark.encodeList(sections),
+        'chord_beats': _encodeChordBeats(chordBeats),
         'created_at': createdAt,
         'updated_at': updatedAt,
       };
@@ -117,6 +141,11 @@ class Progression {
     int? bpm,
     TimeSignature? timeSignature,
     AccomPattern? pattern,
+    String? instrumentId,
+    bool? drumTrack,
+    List<SectionMark>? sections,
+    List<int>? chordBeats,
+    bool clearChordBeats = false,
     int? updatedAt,
   }) =>
       Progression(
@@ -128,9 +157,51 @@ class Progression {
         bpm: bpm ?? this.bpm,
         timeSignature: timeSignature ?? this.timeSignature,
         pattern: pattern ?? this.pattern,
+        instrumentId: instrumentId ?? this.instrumentId,
+        drumTrack: drumTrack ?? this.drumTrack,
+        sections: sections ?? this.sections,
+        // 可空字段需显式 clear 标志，否则 null 会被误当成「不修改」。
+        chordBeats:
+            clearChordBeats ? null : (chordBeats ?? this.chordBeats),
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
       );
+}
+
+/// 段落标记（v0.5）：从第 [index] 个和弦起进入 [label] 段（前奏/主歌/副歌…）。
+class SectionMark {
+  final int index;
+  final String label;
+
+  const SectionMark({required this.index, required this.label});
+
+  Map<String, Object?> toMap() => {'index': index, 'label': label};
+
+  factory SectionMark.fromMap(Map<Object?, Object?> m) => SectionMark(
+        index: (m['index'] as num).toInt(),
+        label: m['label'] as String,
+      );
+
+  static String? encodeList(List<SectionMark> marks) {
+    if (marks.isEmpty) return null;
+    return jsonEncode([for (final m in marks) m.toMap()]);
+  }
+
+  static List<SectionMark> decodeList(String? raw) {
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final list = jsonDecode(raw);
+      if (list is List) {
+        return list
+            .whereType<Map>()
+            .map(SectionMark.fromMap)
+            .toList(growable: false);
+      }
+    } catch (_) {
+      // 历史脏数据降级为无段落，不阻断曲库加载。
+    }
+    return const [];
+  }
 }
 
 /// 业务 id 生成（与 StudyIds 同风格的文本主键）。
@@ -156,4 +227,20 @@ List<String> _decodeChords(String? raw) {
     // 历史脏数据降级为空序列，不阻断曲库加载。
   }
   return const [];
+}
+
+String? _encodeChordBeats(List<int>? beats) =>
+    (beats == null || beats.isEmpty) ? null : jsonEncode(beats);
+
+List<int>? _decodeChordBeats(String? raw) {
+  if (raw == null || raw.isEmpty) return null;
+  try {
+    final list = jsonDecode(raw);
+    if (list is List && list.isNotEmpty) {
+      return list.map((e) => (e as num).toInt()).toList();
+    }
+  } catch (_) {
+    // 历史脏数据降级为默认拍数。
+  }
+  return null;
 }
